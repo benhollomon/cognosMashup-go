@@ -4,6 +4,7 @@ package cognosmashup
 import (
 	"encoding/json"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -53,7 +54,7 @@ type DataTable struct {
 }
 
 // Logon ...
-func (cs *CognosSession) Logon() bool {
+func (cs *CognosSession) Logon() error {
 	xmlCredentials, err := cs.parseCredentialFile()
 
 	xmlCredentials = url.QueryEscape(xmlCredentials)
@@ -66,53 +67,51 @@ func (cs *CognosSession) Logon() bool {
 	req, err := http.NewRequest("GET", reqStr, nil)
 	resp, err := client.Do(req)
 
-	var retVal bool
-
-	if err == nil && resp.StatusCode == 200 {
-		retVal = true
-	} else {
-		retVal = false
+	if err != nil {
+		return err
+	} else if resp.StatusCode != 200 {
+		return errors.New("StatusCode != 200")
 	}
 
-	return retVal
+	return nil
 }
 
 // GetReportDataByID ...
-func (cs *CognosSession) GetReportDataByID(reportID string, dataSetID int) (bool, *DataTable) {
+func (cs *CognosSession) GetReportDataByID(reportID string, dataSetID int, rows interface{}) error {
 	reqStr := cs.DispatcherURL + "/rds/reportData/report/" + reportID + "?fmt=DataSetJSON"
 
 	client := &http.Client{Jar: cs.jar}
 	req, err := http.NewRequest("GET", reqStr, nil)
 	resp, err := client.Do(req)
 
-	var retVal bool
-
-	report := Report{}
-
 	if err == nil && resp.StatusCode == 200 {
-		retVal = true
-
 		defer resp.Body.Close()
 		body, err := ioutil.ReadAll(resp.Body)
 
+		report := Report{}
 		err = json.Unmarshal(body, &report)
 
 		if err != nil {
-			retVal = false
+			return err
 		}
+
+		jsonStr, err := json.Marshal(report.DataSet.DataTable[dataSetID-1].Row)
+		err = json.Unmarshal(jsonStr, &rows)
+
+		if err != nil {
+			return err
+		}
+	} else if resp.StatusCode != 200 {
+		return errors.New("StatusCode != 200")
 	} else {
-		retVal = false
+		return err
 	}
 
-	if err != nil {
-		retVal = false
-	}
-
-	return retVal, &report.DataSet.DataTable[dataSetID-1]
+	return nil
 }
 
 // Logoff ...
-func (cs *CognosSession) Logoff() bool {
+func (cs *CognosSession) Logoff() error {
 	reqStr := cs.DispatcherURL + "/rds/auth/logoff"
 
 	client := &http.Client{Jar: cs.jar}
@@ -120,23 +119,20 @@ func (cs *CognosSession) Logoff() bool {
 	resp, err := client.Do(req)
 
 	if err != nil {
-		return false
+		return err
+	} else if resp.StatusCode != 200 {
+		return errors.New("StatusCode != 200")
 	}
 
-	switch resp.StatusCode {
-	case 200:
-		return true
-	default:
-		return false
-	}
+	return nil
 }
 
 // parseCredentialFile ...
 func (cs *CognosSession) parseCredentialFile() (string, error) {
 	xmlFile, err := os.Open(cs.CredentialTemplatePath)
 	if err != nil {
-		fmt.Println("Error opening file:", err)
-		return "Error opening file:", err
+		fmt.Println("Error opening file: ", err)
+		return "Error opening file: ", err
 	}
 	defer xmlFile.Close()
 
