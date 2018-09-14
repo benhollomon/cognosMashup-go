@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
@@ -102,6 +103,10 @@ func (cs *CognosSession) GetReportDataByID(reportID string, dataSetID int, rows 
 			return err
 		}
 	} else if resp.StatusCode != 200 {
+		defer resp.Body.Close()
+		body, _ := ioutil.ReadAll(resp.Body)
+		log.Println(string(body))
+
 		return errors.New("StatusCode != 200")
 	} else {
 		return err
