@@ -85,30 +85,38 @@ func (cs *CognosSession) GetReportDataByID(reportID string, dataSetID int, rows 
 	req, err := http.NewRequest("GET", reqStr, nil)
 	resp, err := client.Do(req)
 
-	if err == nil && resp.StatusCode == 200 {
-		defer resp.Body.Close()
-		body, err := ioutil.ReadAll(resp.Body)
+	if err == nil {
+		if resp.StatusCode == 200 {
+			defer resp.Body.Close()
+			body, err := ioutil.ReadAll(resp.Body)
 
-		report := Report{}
-		err = json.Unmarshal(body, &report)
+			report := Report{}
+			err = json.Unmarshal(body, &report)
 
-		if err != nil {
-			return err
+			if err != nil {
+				return err
+			}
+
+			jsonStr, err := json.Marshal(report.DataSet.DataTable[dataSetID-1].Row)
+			err = json.Unmarshal(jsonStr, &rows)
+
+			if err != nil {
+				return err
+			}
+		} else {
+			log.Println(fmt.Sprintf("StatusCode: %d", resp.StatusCode))
+			defer resp.Body.Close()
+			body, _ := ioutil.ReadAll(resp.Body)
+			log.Println(string(body))
+
+			return errors.New("StatusCode != 200")
 		}
-
-		jsonStr, err := json.Marshal(report.DataSet.DataTable[dataSetID-1].Row)
-		err = json.Unmarshal(jsonStr, &rows)
-
-		if err != nil {
-			return err
-		}
-	} else if resp.StatusCode != 200 {
+	} else {
+		log.Println(fmt.Sprintf("StatusCode: %d", resp.StatusCode))
 		defer resp.Body.Close()
 		body, _ := ioutil.ReadAll(resp.Body)
 		log.Println(string(body))
 
-		return errors.New("StatusCode != 200")
-	} else {
 		return err
 	}
 
