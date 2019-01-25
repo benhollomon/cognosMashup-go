@@ -78,8 +78,8 @@ func (cs *CognosSession) Logon() error {
 }
 
 // GetReportDataByID ...
-func (cs *CognosSession) GetReportDataByID(reportID string, dataSetID int, rows interface{}) error {
-	reqStr := cs.DispatcherURL + "/rds/reportData/report/" + reportID + "?fmt=DataSetJSON"
+func (cs *CognosSession) GetReportDataByID(reportID string, reportOptions string, dataSetID int, rows interface{}) error {
+	reqStr := cs.DispatcherURL + "/rds/reportData/report/" + reportID + "?" + reportOptions
 
 	client := &http.Client{Jar: cs.jar}
 	req, err := http.NewRequest("GET", reqStr, nil)
